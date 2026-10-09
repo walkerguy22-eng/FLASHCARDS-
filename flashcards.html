@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Interactive Study Flashcards</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-color: #2c3e50;
+      --primary-color: #0056b3;
+      --primary-hover: #003d82;
+      --border-color: #e0e0e0;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+    }
+    .container { width: 100%; max-width: 650px; display: flex; flex-direction: column; align-items: center; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .progress { font-weight: 600; color: #6c757d; margin-top: 5px; }
+    .card-container { width: 100%; height: 320px; perspective: 1000px; cursor: pointer; margin-bottom: 25px; }
+    .card {
+      width: 100%; height: 100%; position: relative; transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 16px; box-shadow: var(--shadow);
+    }
+    .card.flipped { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute; width: 100%; height: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      border-radius: 16px; background-color: var(--card-bg); border: 1px solid var(--border-color);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; box-sizing: border-box; text-align: center; overflow-y: auto;
+    }
+    .card-front { color: var(--text-color); }
+    .card-back { transform: rotateY(180deg); background-color: #f8fbff; border-color: #b8daff; color: #004085; }
+    .label { position: absolute; top: 15px; left: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+    .content { font-size: 1.25rem; line-height: 1.5; font-weight: 500; white-space: pre-line; }
+    .hint { position: absolute; bottom: 15px; font-size: 0.8rem; color: #aaa; }
+    .controls { display: flex; gap: 15px; width: 100%; justify-content: space-between; }
+    button {
+      background-color: var(--primary-color); color: white; border: none; padding: 12px 24px;
+      border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: background-color 0.2s; flex: 1; max-width: 150px;
+    }
+    button:hover { background-color: var(--primary-hover); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    .keyboard-info { margin-top: 20px; font-size: 0.85rem; color: #6c757d; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Study Flashcards</h2>
+      <div class="progress" id="progress">Card 1 of 0</div>
+    </div>
+    <div class="card-container" onclick="flipCard()">
+      <div class="card" id="card">
+        <div class="card-face card-front">
+          <span class="label">Front</span>
+          <div class="content" id="card-front-text">Loading...</div>
+          <span class="hint">Click to flip</span>
+        </div>
+        <div class="card-face card-back">
+          <span class="label">Back</span>
+          <div class="content" id="card-back-text">Loading...</div>
+          <span class="hint">Click to flip</span>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="prev-btn" onclick="prevCard()">Previous</button>
+      <button id="shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+      <button id="next-btn" onclick="nextCard()">Next</button>
+    </div>
+    <div class="keyboard-info">
+      Keyboard Shortcuts: <strong>Space/Up/Down</strong> = Flip | <strong>Left/Right</strong> = Nav
+    </div>
+  </div>
+
+  <script>
+    const flashcards = [
+      { front: "Spacing between coring", back: "10\"" },
+      { front: "\"PT\" in a blueprint", back: "Point of Interest" },
+      { front: "Longest footage allowed for air vent", back: "30'" },
+      { front: "Different radius values", back: "3' / 5' / 12.5' / 35'" },
+      { front: "Different bend angles", back: "5° / 11¼° / 22½° / 45° / 90°" },
+      { front: "Max sidewalk slope", back: "2%" },
+      { front: "Max driveway slope", back: "20%" },
+      { front: "Blueprint code breakdown (e.g., 22H8047)", back: "(22) = Year\n(H) = Type of print\n(8) = Who's doing it\n(047) = # of prints made" },
+      { front: "Material for pole riser", back: "sch40 cap / sch80 nipple / sch40 coupling & 90°" },
+      { front: "Amount of 90°s allowed in air vent run", back: "1" },
+      { front: "Pole quadrant diagram", back: "A circle divided into 4 quadrants marked with positions: 12 (top), 3 (right), 6 (bottom), and 9 (left)" },
+      { front: "False roof components", back: "Sheathing, shores, joist, stringers & cross bracing" },
+      { front: "Shield parts", back: "Shield walls / Pin & Keepers / Data tag / D-Ring / Spreaders / Bolt hooks / Stack tubes" },
+      { front: "Concrete steps process", back: "Vibrate / Screed / Float / Edge / Steel finish & Broom" },
+      { front: "Slurry Backfill mix", back: "100-E-100" },
+      { front: "Encasement mix", back: "330-C-1700" },
+      { front: "Sidewalk mix", back: "420-C-2500" },
+      { front: "Concrete yards formula", back: "(L × W × H) ÷ 27" },
+      { front: "Shoring setup & formulas", back: "18 inches from top rail to street, 2 feet to the bottom of rail, 4 feet from ram to ground" },
+      { front: "Max trench depth for 5' rail", back: "8'" },
+      { front: "What are the colors used for USA markings and what do they represent?", back: "Red: Electric\nYellow: Gas\nGreen: Sewer\nPurple: Reclaimed Water\nOrange: Communication\nPink: Survey\nWhite: Proposed Work" },
+      { front: "Name the type of soil classification", back: "A, B, C, C60, Rock" },
+      { front: "Name three methods of Shoring", back: "Hydraulic, Timber, Screwjack" },
+      { front: "What is the name of the protective system that protects workers from the effects of a cave-in if one occurs?", back: "Shoring" },
+      { front: "Type C soil is the most cohesive type of soil — True or False", back: "False" },
+      { front: "Ladders, Ramps and Stairways in a trench must be located no more than _____ from where people are working.", back: "25 feet" },
+      { front: "You should never enter an unprotected trench that is 5 feet or deeper — True or False", back: "True" },
+      { front: "To prevent cave-ins, OSHA requires piles of \"spoils\" and other materials to be placed at least _____ back from the edge of a trench.", back: "2 feet" },
+      { front: "What does IIPP stand for?", back: "Injury Illness Prevention Program" },
+      { front: "Correctly identify USA abbreviations: E, PLA, STL, W, TEL, CU, G", back: "E = Electric\nPLA = Plastic\nSTL = Steel\nW = Water\nTEL = Telecom\nCU = Copper\nG = Gas" },
+      { front: "When performing an in-cab brake test, what is the maximum air compressor cut-out? _____ psi/Max", back: "140 PSI" },
+      { front: "The minimum air compressor should cut-in no lower than what? _____ psi/Min", back: "100 PSI" },
+      { front: "When using a fire extinguisher, what does the PASS method stand for?", back: "1. Pull\n2. Aim\n3. Squeeze\n4. Sweep" },
+      { front: "Hydraulic shore should be installed from the _____ _____ and removed from the _____ _____.", back: "Top down, Bottom up" },
+      { front: "What is DWP standard back-fill slurry mix?", back: "100-E-100" },
+      { front: "What is DWP standard encasement conduit mix?", back: "330-C-1700" },
+      { front: "Primer is not needed to glue conduit together — True or False", back: "False" },
+      { front: "A ladder must extend _____ from the top.", back: "3 feet" },
+      { front: "Before entering a vault, you must ventilate for _____ minutes.", back: "15" },
+      { front: "You can not ventilate a trench? True or False", back: "False" },
+      { front: "Tools and materials required in underground substructures shall be raised or lower with a _____", back: "Handline" },
+      { front: "All cables and equipment in an underground substructure shall be considered to be _____", back: "Hot" },
+      { front: "Trench's or manhole that are _____ or more in depth shall have a ladder.", back: "4 feet" },
+      { front: "Who should be called before Excavation begins? _____", back: "811 Dig Alert" },
+      { front: "What PPE shall be worn during chipping operations. _____, _____, _____, _____", back: "Hard hat, safety glasses, respirator, face shield, chipping gloves, coveralls" },
+      { front: "If your supervisor has submitted a \"Work Hot Request\" it is ok to start chipping. True or False", back: "False" },
+      { front: "Tools shall be inspected, cleaned and stored in a safe place at the end of ea_____. True or False", back: "True" },
+      { front: "Locking hose couplings and _____ cable shall be used to prevent accidental separation and whipping of the air line.", back: "Whip check" },
+      { front: "The only Competent person on a job site is the Foreman? True or False", back: "False" },
+      { front: "If your involved in a traffic accident you can exchange information and continue to your job site? True or False", back: "False" },
+      { front: "What equipment is needed for a substructure rescue. _____, _____, _____, _____ or _____", back: "Nylon sling, two handlines, or rope ½ inch or greater" },
+      { front: "Over the air Emergency, what is needed, Where it is needed and Why it is needed along with Employees Information Name and Employee # is required. True or False", back: "False" },
+      { front: "If involved in an accident on city streets CHP must be contacted? True or False", back: "False" },
+      { front: "If you witness a cave-in you must do what before looking away. _____", back: "Place a marker where the victim is" },
+      { front: "High Voltage is a sustained voltage of more than _____ volts.", back: "600" },
+      { front: "Oxygen Enriched is oxygen concentration greater than _____%", back: "23.5" },
+      { front: "Before entering a substructure, you must sample the atmosphere at the _____, _____, and _____ of the substructure.", back: "Top, middle, bottom" },
+      { front: "Oxygen deficient is oxygen concentration less than _____%", back: "19.5" },
+      { front: "The _____ book is used to help traffic planning and lay-out.", back: "WATCH manual" },
+      { front: "Lane closure and narrowing of a lane, a minimum of _____ high warning devices shall be used, what are the purpose? _____ & _____", back: "2 warning devices; they provide advance warning and information" },
+      { front: "What dictates cone spacing? _____", back: "Speed of traffic" },
+      { front: "How much soil is removed if you excavate a trench 150' Ft in length 24\" inches wide and 5' in depth _____ Cubic Yards.", back: "55.5 (L × W × H ÷ 27)" },
+      { front: "If the conduit has a bend, you should install the conduit:", back: "Belly up" },
+      { front: "When conducting a Temperature Test inspection, what is the temperature range for Priority 1 _____ and Priority 2 _____", back: "Priority 1 < 26 degrees, Priority 2 14–25 degrees, Priority 3 5–13 degrees" },
+      { front: "When working in a DS or RS you can raise your arm above your head to point out hazards. True or False", back: "False" },
+      { front: "When working in a DS or RS it's recommended two employees carry anything longer than 8ft. True or False", back: "True" },
+      { front: "When working in a DS or RS using a metal measuring tape is always allowed. True or False", back: "False" },
+      { front: "Installing Vent pipe for single vent should not exceed _____ feet in length.", back: "30 feet" },
+      { front: "There shall not be more than _____ 90-degree bend in any single vent pipe installation.", back: "1" },
+      { front: "If your building a 5-inch pole raiser or greater, what radius is used?", back: "5 foot" },
+      { front: "When using a stand-off bracket, how far should you build your conduit from the pole?", back: "6 inches" },
+      { front: "DWP limits the total number of bends in one continuous run to _____ degrees or _____.", back: "270 degrees or 3 90’s" },
+      { front: "The maximum span between duct spacers for 6inch to 4inch conduit is _____.", back: "6 feet" },
+      { front: "Generation - Gas, Coal, Nuclear", back: "500 kV" },
+      { front: "Transmission - RS Primary / Large Customer", back: "34.5 kV" },
+      { front: "Distribution - DS Secondary / Small Customer", back: "4.8 kV" },
+      { front: "Customer - Pole top transformer", back: "240 / 120 V" },
+      { front: "P-\"Drawing\"", back: "Customers Drawing" },
+      { front: "S- Drawing", back: "8½\" x 11\" (Service cable install)" },
+      { front: "A- Drawing", back: "8½\" x 11\" (Designed to install all 34.5, 4.8, Secondary, Service, Transformers, Equipment)" },
+      { front: "E- Drawing", back: "11\" x 17\" (Same As A)" },
+      { front: "H- Drawing", back: "24\" x 36\" (Same As A + E)" },
+      { front: "FID", back: "Facility Identification #" },
+      { front: "False Roof - Dead Load (DL) definition & formula", back: "Weight of concrete = 150 lb/cu ft\nFormula: DL = 150 × (Slab in / 12)" },
+      { front: "False Roof - Live Load (LL)", back: "Coworkers and Materials = 50 psf\nPower Buggies (LL) = 75 psf" },
+      { front: "False Roof - Total Load (TL)", back: "The result for DL + LL = TL" },
+      { front: "What is the concrete for sidewalk", back: "520-C-2500" },
+      { front: "What is the concrete for street", back: "520-A-2500" },
+      { front: "Before chipping what should you look at", back: "Equipment, Vault walls, Ducts" },
+      { front: "How far should sources of ignition be from work", back: "10 feet" },
+      { front: "What is the formula for Cu ft of concrete", back: "Volume (Cubic Feet) = Length (feet) × Width (feet) × Thickness (feet)" },
+      { front: "What is the formula for tons of asphalt", back: "Weight (Tons) = [Volume (Cubic Feet) × 145] ÷ 2000" },
+      { front: "Fire Extinguisher - Class A", back: "For wood, paper, dry vegetation" },
+      { front: "Fire Extinguisher - Class B", back: "Flammable liquids, fuels, paints, grease" },
+      { front: "Fire Extinguisher - Class C", back: "Electrically energized equipment in combination with class A or B" },
+      { front: "Fire Extinguisher - Class D", back: "Combustible metals (Magnesium, Sodium)" },
+      { front: "Fire Extinguisher - Class K", back: "Kitchens / Deep fryer" },
+      { front: "PASS Method", back: "Pull Pin, Aim, Squeeze, Sweep" },
+      { front: "What is the formula for slope", back: "Slope (m) = Rise / Run" },
+      { front: "Underground substructure covers shall be placed where they will not interfere with workers' activities nor become a hazard to pedestrian or vehicle traffic, and they shall be located away from oncoming traffic, to _____ the hazard of being knocked into underground substructures.", back: "C. Minimize (Rule 8-102)" },
+      { front: "Underground substructure openings shall be guarded by an adequate _____ or _____ for the protection of the worker and the public.", back: "F. A and B (Screen or Barricade - Rule 8-103)" },
+      { front: "Employees shall not stand or step on the inner lid of substructures. True or False", back: "True (Rule 8-104)" },
+      { front: "Sources of ignition are to be kept a minimum of _____ feet from underground substructure openings until the space is tested with an approved testing device and found to be free of explosive gases.", back: "B. 10 (Rule 8-201)" },
+      { front: "Underground substructures shall be tested for oxygen concentrations and the presence of explosive gases with an approved testing device immediately _____ opening the cover.", back: "C. After (Rule 8-202)" },
+      { front: "While the substructure is open, the daily atmospheric record shall be kept at the _____.", back: "D. Jobsite (Rule 8-203)" },
+      { front: "Who is responsible for signing the \"Daily Atmospheric Record\" notebook?", back: "C. Employee who performed the test (Rule 8-203)" },
+      { front: "Underground substructures shall be _____ monitored with an approved testing device while work is being performed on any gas-filled cable or equipment within them.", back: "B. Continuously (Rule 8-204)" },
+      { front: "All underground substructures shall be force ventilated before employees enter the substructure. The hose of the ventilator shall be in the lower _____ of the substructure.", back: "C. 1/3 (Rule 8-301)" },
+      { front: "Force ventilation shall be maintained at all times when employees are in substructures. True or False", back: "True (Rule 8-302)" },
+      { front: "How many employees shall remain on the surface when entry is made into an underground substructure?", back: "B. One (Rule 8-401)" },
+      { front: "Trench and other excavations shall be protected from the danger of cave-ins by a suitable and adequate _____.", back: "Shoring system (Rule 10-102)" },
+      { front: "Trenches that are _____ feet or more in depth shall have a ladder.", back: "4 (Rule 10-103)" },
+      { front: "No employee shall have to move more than _____ feet to reach a ladder.", back: "25 (Rule 10-103)" },
+      { front: "Ladders should extend _____ feet above the top.", back: "3 (Rule 10-103)" },
+      { front: "Excavations shall be inspected by a _____ and before the _____ of work for possible weakening or cave-ins.", back: "Competent person daily / Resumption (Rule 10-104)" },
+      { front: "Spoil banks shall be maintained _____ feet from the edge of a trench or excavation.", back: "2 (Rule 10-105)" },
+      { front: "When excavating to remove earth and other materials it is acceptable to leave overhanging banks. True or False", back: "False (Caution shall be exercised to leave no overhanging banks - Rule 10-106)" },
+      { front: "Shoulders of trenches shall be kept free of tools, materials, stone and loose earth. True or False", back: "True (Rule 10-109)" },
+      { front: "Barricades and warning lights _____ be provided at unattended excavations to prevent pedestrians or operators of motor vehicles from falling into excavations.", back: "A. Shall (Rule 10-110)" },
+      { front: "Underground service alert shall be notified, at least _____ prior to conducting any excavation.", back: "2 working days (Rule 10-201)" },
+      { front: "Bracing shall be installed from the _____ and removed from the _____.", back: "Top down / Bottom up (Rule 10-401)" },
+      { front: "The use of mechanical aids to increase the leverage on any tool is prohibited. True or False", back: "True (Rule 11-105)" },
+      { front: "Tools _____ be inspected, cleaned and stored in a safe place at the end of each work period.", back: "A. Shall (Rule 11-103)" },
+      { front: "Screwdrivers should not be used as punches or pry bars. True or False", back: "True (Rule 11-110)" },
+      { front: "Conductive measuring tapes or rules _____ not be used around energized electrical equipment.", back: "B. Shall (Rule 11-111)" },
+      { front: "When operating pavement breakers, jackhammers, and tampers, metal _____ guards, goggles or a face shield with eye protection, gloves and hearing protection shall be worn.", back: "B. Toe (Rule 11-201)" },
+      { front: "Defective electric tools and extension cords which are found unsafe are to be tagged and returned into the _____ for repair.", back: "A. Toolroom (Rule 11-302)" },
+      { front: "The electric cord and/or extension cord shall never be used as hand line to lower or raise a tool. True or False", back: "True (Rule 11-304)" },
+      { front: "Ladder shall be inspected for _____ prior to use.", back: "D. Defects (Rule 11-402)" },
+      { front: "No portable ladder shall be used to gain access to a landing such as a roof, top of transformer or similar equipment unless the ladder extends at least _____ feet above the point of step off.", back: "B. 3 (Rule 11-404)" },
+      { front: "The ladder shall be placed so that the distance from the wall to the base of the ladder is _____ the length of the ladder to the top support.", back: "C. 1/4 (Rule 11-414)" },
+      { front: "A ladder shall never be used as a \"gin\" to rig from. True or False", back: "True (Rule 11-419)" }
+    ];
+
+    let currentIndex = 0;
+    let isFlipped = false;
+
+    function updateCard() {
+      const cardElem = document.getElementById("card");
+      cardElem.classList.remove("flipped");
+      isFlipped = false;
+      setTimeout(() => {
+        document.getElementById("card-front-text").innerText = flashcards[currentIndex].front;
+        document.getElementById("card-back-text").innerText = flashcards[currentIndex].back;
+        document.getElementById("progress").innerText = `Card ${currentIndex + 1} of ${flashcards.length}`;
+        document.getElementById("prev-btn").disabled = currentIndex === 0;
+        document.getElementById("next-btn").disabled = currentIndex === flashcards.length - 1;
+      }, 150);
+    }
+
+    function flipCard() {
+      document.getElementById("card").classList.toggle("flipped");
+      isFlipped = !isFlipped;
+    }
+
+    function nextCard() {
+      if (currentIndex < flashcards.length - 1) { currentIndex++; updateCard(); }
+    }
+
+    function prevCard() {
+      if (currentIndex > 0) { currentIndex--; updateCard(); }
+    }
+
+    function shuffleCards() {
+      for (let i = flashcards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+      }
+      currentIndex = 0;
+      updateCard();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" || e.code === "ArrowUp" || e.code === "ArrowDown") {
+        e.preventDefault(); flipCard();
+      } else if (e.code === "ArrowRight") { nextCard(); }
+      else if (e.code === "ArrowLeft") { prevCard(); }
+    });
+
+    updateCard();
+  </script>
+</body>
+</html>
