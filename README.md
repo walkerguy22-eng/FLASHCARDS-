@@ -1,2 +1,0 @@
-# FLASHCARDS-
-flashcards 
